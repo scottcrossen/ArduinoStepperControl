@@ -1,11 +1,16 @@
 #include <avr/interrupt.h>
+// a value somewhere in the middle of the timer0 register that doesn't conflict with the system interrupts at the end
 #define TIMER0_MIDDLE 0xAF
+// the pin to use to trigger a cycle
 #define IN_START 2
+// the pin to use to pass in direction, low = up, high = down
 #define IN_DIRECTION 13
+// the pins to use as outputs
 #define OUT_WIRE_1 7
 #define OUT_WIRE_2 6
 #define OUT_WIRE_3 5
 #define OUT_WIRE_4 4
+// the outputs of the wire in each step
 #define WIRE_1_STEP_1 HIGH
 #define WIRE_1_STEP_2 LOW
 #define WIRE_1_STEP_3 LOW
@@ -23,14 +28,18 @@
 #define WIRE_4_STEP_3 HIGH
 #define WIRE_4_STEP_4 HIGH
 
+// the 'startEdgeDetect' state machine detects when the 'start' pin goes from low to high
 enum startEdgeDetect_st_t {
   low_st,
   edge_st,
   high_st,
 } startEdgeDetectState = high_st; // start high to avoid initialization errors
 
+// the output of the startEdgeDetect state machine
 boolean start_is_edge = false;
 
+// the tick function of the startEdgeDetect state machine
+// this is called once every interrupt
 void startEdgeDetect_tick() {
   // state actions switch
   switch(startEdgeDetectState) {
@@ -71,6 +80,7 @@ void startEdgeDetect_tick() {
 }
 
 
+// the 'motorControl' state machine controls what step the motor is in
 enum motorControl_st_t {
   init_st,
   wait_st,
@@ -80,13 +90,18 @@ enum motorControl_st_t {
   step_4_st,
 } motorControlState = wait_st;
 
-uint16_t stepCounter = 0;
+// the motorControl state machine output
 bool directionUp = true;
+// the motorControl state machine internal counter (don't use)
+uint16_t stepCounter = 0;
 
+// the motorControl state machine tick function.
+// this is called once every timer interrupt
 void motorControl_tick() {
   // state actions switch
   switch(motorControlState) {
     case wait_st:
+      //TODO: should the output wires be set to low?
       break;
     case step_1_st:
       digitalWrite(OUT_WIRE_1, WIRE_1_STEP_1);
