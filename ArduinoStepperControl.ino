@@ -23,6 +23,54 @@
 #define WIRE_4_STEP_3 HIGH
 #define WIRE_4_STEP_4 HIGH
 
+enum startEdgeDetect_st_t {
+  low_st,
+  edge_st,
+  high_st,
+} startEdgeDetectState = high_st; // start high to avoid initialization errors
+
+boolean start_is_edge = false;
+
+void startEdgeDetect_tick() {
+  // state actions switch
+  switch(startEdgeDetectState) {
+    case low_st:
+      start_is_edge = false;
+      break;
+    case edge_st:
+      start_is_edge = true;
+      break;
+    case high_st:
+      start_is_edge = false;
+      break;
+    default:
+      start_is_edge = false;
+      //TODO: handle error for unreachable state
+      break;
+  }
+
+  // state transitions switch
+  switch(startEdgeDetectState) {
+    case low_st:
+      if (digitalRead(IN_START) == HIGH) {
+        startEdgeDetectState=edge_st;
+      }
+      break;
+    case edge_st:
+      startEdgeDetectState=high_st;
+      break;
+    case high_st:
+      if (digitalRead(IN_START) == LOW) {
+        startEdgeDetectState=low_st;
+      }
+      break;
+    default:
+      startEdgeDetectState=high_st;
+      break;
+  }
+}
+
+
 enum motorControl_st_t {
   init_st,
   wait_st,
@@ -30,7 +78,7 @@ enum motorControl_st_t {
   step_2_st,
   step_3_st,
   step_4_st,
-} motorControlState = init_st;
+} motorControlState = wait_st;
 
 uint16_t stepCounter = 0;
 bool directionUp = true;
@@ -38,8 +86,6 @@ bool directionUp = true;
 void motorControl_tick() {
   // state actions switch
   switch(motorControlState) {
-    case init_st:
-      break;
     case wait_st:
       break;
     case step_1_st:
@@ -73,17 +119,16 @@ void motorControl_tick() {
   
   // state transitions switch
   switch(motorControlState) {
-    case init_st:
-      motorControlState=wait_st;
-      break;
     case wait_st:
-      if (digitalRead(IN_START) == HIGH) {
+      if (start_is_edge) {
         if (digitalRead(IN_DIRECTION) == LOW) {
           directionUp=true;
           motorControlState=step_1_st;
         } else if (stepCounter > 0) {
           directionUp=false;
           motorControlState=step_4_st;
+        } else {
+          //TODO: handle case where arduino is triggered to go down, but the counter is already at zero.
         }
       }
       break;
@@ -118,7 +163,7 @@ void motorControl_tick() {
       }
       break;
     default:
-      //TODO: handle error from unreachable state
+      motorControlState=wait_st;
       break;
   }
 }
@@ -144,5 +189,6 @@ void loop() {
 //interrupt called by timer 0
 SIGNAL(TIMER0_COMPA_vect) {
   motorControl_tick();
+  startEdgeDetect_tick();
 }
 
