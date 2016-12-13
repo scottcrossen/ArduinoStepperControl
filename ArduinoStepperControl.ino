@@ -1,3 +1,4 @@
+//Based off of code provided by Tom Igoe
 #include <Stepper.h>
 #define motorSteps 513
 #define motorPin1 6
